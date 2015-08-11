@@ -56,25 +56,29 @@ export class ToolRunner extends events.EventEmitter {
 
     private _argStringToArray(argString: string): string[] {
         var args = argString.match(/([^" ]*("[^"]*")[^" ]*)|[^" ]+/g);
-        //remove double quotes from each string in args as child_process.spawn() cannot handle literla quotes as part of arguments
+        if (!args) {
+            return [argString];
+        }
+        
+        //remove double quotes from each string in args as child_process.spawn() cannot handle literal quotes as part of arguments
         for (var i = 0; i < args.length; i++) {
             args[i] = args[i].replace(/"/g, "");
         }
         return args;
     }
 
-    public arg(arguments, raw) {
+    public arg(args, raw) {
         if (!arguments) {
             return;
         }
 
-        if (arguments instanceof Array) {
+        if (args instanceof Array) {
             this._debug(this.toolPath + ' arg: ' + JSON.stringify(arguments));
-            this.args = this.args.concat(arguments);
+            this.args = this.args.concat(args);
         }
         else if (typeof(arguments) === 'string') {
             this._debug(this.toolPath + ' arg: ' + arguments);
-            this.args = this.args.concat(this._argStringToArray(arguments));
+            this.args = this.args.concat(this._argStringToArray(args));
         }
     }
 

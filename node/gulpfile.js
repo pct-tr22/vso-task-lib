@@ -34,24 +34,44 @@ gulp.task('clean', function (done) {
 	return del([buildRoot], done);
 });
 
-gulp.task('copy:manifest', ['clean'], function () {
-	return gulp.src(['package.json', '../LICENSE', '../README.md'])
+gulp.task('loc:generate', ['clean'], function() {
+    // Build the content for the en-US resjson file.
+    var lib = require('./lib.json');
+    var strPath = path.join('Strings', 'resources.resjson', 'en-US');
+    shell.mkdir('-p', strPath);
+    var strings = { };
+    if (lib.messages) {
+        for (var key in lib.messages) {
+            var messageKey = 'loc.messages.' + key;
+            strings[messageKey] = lib.messages[key];
+        }
+    }
+
+    // Create the en-US resjson file.
+    var enPath = path.join(strPath, 'resources.resjson');
+    var enContents = JSON.stringify(strings, null, 2);
+    fs.writeFileSync(enPath, enContents)
+    return;
+});
+
+gulp.task('copy:manifest', ['loc:generate'], function () {
+	return gulp.src(['package.json', 'lib.json', path.join('**', 'resources.resjson'), path.join('..', 'LICENSE'), path.join('..', 'README.md')])
 		.pipe(gulp.dest(buildRoot))
 });
 
 gulp.task('copy:d.ts', ['clean'], function () {
-	return gulp.src(['definitions/**/*'])
-		.pipe(gulp.dest(path.join(buildRoot, 'definitions')))
+	return gulp.src(['typings/**/*'])
+		.pipe(gulp.dest(path.join(buildRoot, 'typings')))
 });
 
 gulp.task('definitions', ['copy:d.ts', 'copy:manifest'], function () {
     return dtsgen.generate({
-        name: 'vso-task-lib',
+        name: 'vsts-task-lib',
         baseDir: 'lib',
-        files: [ 'vsotask.ts', 'taskcommand.ts', 'toolrunner.ts' ],
+        files: [ 'task.ts', 'taskcommand.ts', 'toolrunner.ts' ],
 		excludes: ['node_modules/**/*.d.ts', 'definitions/**/*.d.ts'],
-        externs: ['../definitions/node.d.ts', '../definitions/Q.d.ts'],
-        out: '_build/d.ts/vso-task-lib.d.ts'
+        externs: ['../typings/main.d.ts'],
+        out: '_build/d.ts/vsts-task-lib.d.ts'
     });
 });
 
@@ -68,7 +88,7 @@ gulp.task('default', ['build:lib']);
 // gulp test
 //---------------------------------------------------------------
 gulp.task('build:test', function () {
-    return gulp.src(['./test/*.ts'], { base: '.'})
+    return gulp.src(['./test/tasklib.ts'], { base: '.'})
         .pipe(ts)
         .on('error', errorHandler)
         .pipe(gulp.dest(buildRoot));
@@ -80,8 +100,8 @@ gulp.task('testprep:testsuite', ['build:test'], function () {
 });
 
 gulp.task('testprep:node_modules', ['testprep:testsuite'], function () {
-	return gulp.src([(buildRoot + '/*.js')])
-		.pipe(gulp.dest(path.join(testDest, 'node_modules/vso-task-lib/')));
+	return gulp.src([(buildRoot + '/*.js'), 'lib.json'])
+		.pipe(gulp.dest(path.join(testDest, 'node_modules/vsts-task-lib/')));
 });
 
 gulp.task('test', ['testprep:node_modules'], function () {
@@ -99,6 +119,7 @@ gulp.task('test', ['testprep:node_modules'], function () {
 gulp.task('prepublish', function (done) {
 	return del([
 		path.join(buildRoot, 'definitions'), 
+        path.join(buildRoot, 'typings'), 
 		path.join(buildRoot, 'test'),
 		path.join(buildRoot, 'd.ts')], 
 		done);
